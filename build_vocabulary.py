@@ -30,10 +30,10 @@ for filename in os.listdir(tokens_dir):
 # Build Vocabulary
 vocab = {
     f"Note_On_{p}_Vel_{v}": i for i, (p, v) in enumerate(
-        (p, v) for p in sorted(note_pitches) for v in sorted(velocities)
+        (p, v) for p in range(min(note_pitches), max(note_pitches) + 1) for v in range((max(velocities) + 1))
     )
 }
-vocab.update({f"Time_Shift_{t}": len(vocab) + i for i, t in enumerate(sorted(time_shifts))})
+vocab.update({f"Time_Shift_{t}": len(vocab) + i for i, t in enumerate(range(max(time_shifts) + 1))})
 vocab.update({token: len(vocab) + i for i, token in enumerate(special_tokens)})
 
 # Add PAD token (for padding sequences)
