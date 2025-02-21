@@ -13,6 +13,10 @@ def load_vocab(vocab_file):
             token_to_index[token] = idx  # Assign an index to each token
     return token_to_index
 
+def create_index_to_token(token_to_index):
+    index_to_token = {index: token for token, index in token_to_index.items()}
+    return index_to_token
+
 # Function to encode the tokens into indices using the token-to-index mapping
 def encode_tokens(tokens, token_to_index):
     return [token_to_index.get(token.strip(), token_to_index['PAD']) for token in tokens]  # 'PAD' if token is unknown
@@ -53,6 +57,7 @@ sequence_length = config.SEQ_LEN  # Length of each sequence (can be adjusted)
 
 # Process the pieces and encode them
 TOKEN_TO_INDEX = load_vocab(vocab_file)
+INDEX_TO_TOKEN = create_index_to_token(TOKEN_TO_INDEX)
 ENCODED_SEQUENCES = process_pieces(directory, vocab_file, sequence_length)
 
 print("Total sequences:",len(ENCODED_SEQUENCES))
