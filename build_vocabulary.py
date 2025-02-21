@@ -1,7 +1,7 @@
 import os
 import re
 
-tokens_dir = "/Users/kevinhan/Desktop/Independent Study/Music Analysis/Chopin_Tokens"
+tokens_dir = "Chopin_Tokens"
 
 note_pitches = set()
 velocities = set()

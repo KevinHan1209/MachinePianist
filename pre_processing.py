@@ -1,7 +1,7 @@
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
-
+import config
 import os
 
 # Function to load the midi vocabulary from the file and create a token-to-index mapping
@@ -49,7 +49,7 @@ def process_pieces(directory, vocab_file, sequence_length):
 # Define parameters
 directory = "Chopin_Tokens"  # Directory containing tokenized pieces
 vocab_file = "midi_vocab.txt"  # Path to the midi vocabulary file
-sequence_length = 1024  # Length of each sequence (can be adjusted)
+sequence_length = config.SEQ_LEN  # Length of each sequence (can be adjusted)
 
 # Process the pieces and encode them
 TOKEN_TO_INDEX = load_vocab(vocab_file)
@@ -68,7 +68,7 @@ class MusicDataset(Dataset):
         seq = self.sequences[idx]
         
         # Create the src (input) and tgt (target) sequences
-        src = torch.tensor(seq)  # Use the entire padded sequence
+        src = torch.tensor(seq[0: len(seq) - 1])  # Use the entire padded sequence
         tgt = torch.tensor(seq[1:])  # All except the first token for the target
 
         return src, tgt
