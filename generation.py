@@ -8,7 +8,7 @@ import config
 
 # Configuration parameters (same as training)
 seq_len = config.SEQ_LEN  # Sequence length of the model
-vocab_size = VOCABULARY_SIZE
+vocab_size = config.VOCAB_SIZE
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 embed_size = config.EMBED_SIZE
 num_heads = config.NUM_HEADS
@@ -20,7 +20,11 @@ max_length = 1024 * 4 # Length of new generation
 # Load your trained model
 model = MusicTransformer(vocab_size=vocab_size, embed_size=embed_size, num_heads=num_heads, 
                          num_layers=num_layers, hidden_dim=hidden_dim, seq_len=seq_len-1)
-model.load_state_dict(torch.load('models/checkpoints/music_transformer_run1.pth'))
+checkpoint = torch.load('checkpoints/music_transformer.pth')
+model_state_dict = checkpoint["model_state_dict"]
+
+# Load model weights into the model
+model.load_state_dict(model_state_dict)
 model.to(device)
 model.eval()  # Set to evaluation mode
 

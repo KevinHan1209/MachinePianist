@@ -105,13 +105,6 @@ def tokens_to_midi(tokens, output_path):
     midi.save(output_path)
     print(f"✅ Saved MIDI to {output_path}")
 
-# Directory paths
-midi_dir = "Music Analysis/midis"
-tokens_dir = "Music Analysis/Chopin_Tokens"
-
-# Create the tokens directory if it doesn't exist
-if not os.path.exists(tokens_dir):
-    os.makedirs(tokens_dir)
 
 # Function to convert all Chopin MIDI files to tokens and save them to separate files
 def convert_chopin_midis_to_tokens(midi_dir, tokens_dir):
@@ -135,7 +128,15 @@ def convert_chopin_midis_to_tokens(midi_dir, tokens_dir):
             
             print(f"Tokens for {filename} saved to {output_file}")
 
-# Call the function
-convert_chopin_midis_to_tokens(midi_dir, tokens_dir)
+# Directory paths
+midi_dir = "Music Analysis/midis"
+tokens_dir = "Music Analysis/Chopin_Tokens"
+
+# Create the tokens directory if it doesn't exist
+if not os.path.exists(tokens_dir):
+    os.makedirs(tokens_dir)
+
+if __name__ == '__main__':
+    convert_chopin_midis_to_tokens(midi_dir, tokens_dir)
 
 

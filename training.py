@@ -55,7 +55,7 @@ loss_fn = nn.CrossEntropyLoss(ignore_index=TOKEN_TO_INDEX['PAD'])  # Ignore padd
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Load existing model weights if available
-if os.path.exists(config.MODEL_PATH):
+if os.path.exists(config.MODEL_PATH) and config.FROM_SAVED:
     print(f"Loading existing model weights from {config.MODEL_PATH}...")
     checkpoint = torch.load(config.MODEL_PATH)
     model.load_state_dict(checkpoint["model_state_dict"])
