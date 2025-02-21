@@ -10,7 +10,6 @@ NUM_HEADS = 8
 NUM_LAYERS = 6
 HIDDEN_DIM = 512
 SEQ_LEN = 513
-
 # Training parameters
 BATCH_SIZE = 8
 EPOCHS = 10
