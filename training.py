@@ -13,7 +13,6 @@ import config  # Import configuration
 # Initialize wandb
 wandb.init(
     project=config.WANDB_PROJECT,
-    entity=config.WANDB_ENTITY,
     config={
         "vocab_size": config.VOCAB_SIZE,
         "embed_size": config.EMBED_SIZE,

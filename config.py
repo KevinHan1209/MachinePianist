@@ -1,10 +1,10 @@
 # config.py
-
+from build_vocabulary import VOCABULARY_SIZE
 import torch
 import os
 
 # Model parameters
-VOCAB_SIZE = 512  # Adjust as needed
+VOCAB_SIZE = VOCABULARY_SIZE  # Adjust as needed
 EMBED_SIZE = 256
 NUM_HEADS = 8
 NUM_LAYERS = 6
