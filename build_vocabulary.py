@@ -1,6 +1,5 @@
 import os
 import re
-from collections import defaultdict
 
 tokens_dir = "/Users/kevinhan/Desktop/Independent Study/Music Analysis/Chopin_Tokens"
 
@@ -41,7 +40,8 @@ vocab["PAD"] = len(vocab)
 
 # Save vocabulary
 with open("midi_vocab.txt", "w") as f:
-    for token, index in vocab.items():
-        f.write(f"{token},{index}\n")
+    for token in vocab:
+        f.write(f"{token}\n")
 
-print("Vocabulary size:", len(vocab))
+VOCABULARY_SIZE = len(vocab)
+print("Vocabulary size:", VOCABULARY_SIZE)

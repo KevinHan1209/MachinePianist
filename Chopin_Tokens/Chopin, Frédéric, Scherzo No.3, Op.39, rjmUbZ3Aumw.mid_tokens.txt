@@ -1,5 +1,3 @@
-Ticks_Per_Beat_384
-Tempo_500000
 Time_Shift_1187
 Note_On_42_Vel_60
 Note_On_54_Vel_49

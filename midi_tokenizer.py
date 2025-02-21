@@ -1,12 +1,13 @@
 from mido import MidiFile, MidiTrack, Message, MetaMessage
+import os
 
 # Function to convert MIDI to tokens
 def midi_to_tokens(midi_path):
     midi = MidiFile(midi_path)
     tokens = []
     
-    ticks_per_beat = midi.ticks_per_beat  # Get ticks_per_beat from the MIDI file
-    tokens.append(f'Ticks_Per_Beat_{ticks_per_beat}')  # Store this as a token
+    #ticks_per_beat = midi.ticks_per_beat  # Get ticks_per_beat from the MIDI file
+    #tokens.append(f'Ticks_Per_Beat_{ticks_per_beat}')  # Store this as a token
 
     for track in midi.tracks:
         time_counter = 0  # Track accumulated time in ticks
@@ -14,10 +15,7 @@ def midi_to_tokens(midi_path):
         for msg in track:
             time_counter += msg.time  # Accumulate time
             
-            if msg.type == 'set_tempo':
-                tempo = msg.tempo
-                tokens.append(f'Tempo_{tempo}')
-            elif msg.type == 'note_on':
+            if msg.type == 'note_on':
                 if time_counter > 0:
                     tokens.append(f'Time_Shift_{time_counter}')
                     time_counter = 0
@@ -106,5 +104,38 @@ def tokens_to_midi(tokens, output_path):
     # Save the reconstructed MIDI file
     midi.save(output_path)
     print(f"✅ Saved MIDI to {output_path}")
+
+# Directory paths
+midi_dir = "Music Analysis/midis"
+tokens_dir = "Music Analysis/Chopin_Tokens"
+
+# Create the tokens directory if it doesn't exist
+if not os.path.exists(tokens_dir):
+    os.makedirs(tokens_dir)
+
+# Function to convert all Chopin MIDI files to tokens and save them to separate files
+def convert_chopin_midis_to_tokens(midi_dir, tokens_dir):
+    # Iterate over all files in the directory
+    for filename in os.listdir(midi_dir):
+        # Check if the file is a MIDI file and starts with 'Chopin'
+        if filename.endswith(".mid") and filename.startswith("Chopin"):
+            midi_path = os.path.join(midi_dir, filename)
+            print(f"Processing: {filename}")
+            
+            # Convert the MIDI file to tokens
+            tokens = midi_to_tokens(midi_path)  # Assuming midi_to_tokens is already defined
+            
+            # Generate output file path
+            output_file = os.path.join(tokens_dir, f"{filename}_tokens.txt")
+            
+            # Save tokens to the file
+            with open(output_file, 'w') as f:
+                for token in tokens:
+                    f.write(token + "\n")
+            
+            print(f"Tokens for {filename} saved to {output_file}")
+
+# Call the function
+convert_chopin_midis_to_tokens(midi_dir, tokens_dir)
 
 

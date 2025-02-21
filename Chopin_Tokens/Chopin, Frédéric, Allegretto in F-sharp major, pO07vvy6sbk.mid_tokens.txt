@@ -1,5 +1,3 @@
-Ticks_Per_Beat_384
-Tempo_500000
 Time_Shift_299
 Sustain_On
 Time_Shift_13
