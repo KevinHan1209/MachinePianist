@@ -69,8 +69,9 @@ class MIDIDataset(Dataset):
         return len(self.sequences)
 
     def __getitem__(self, idx):
-        sequence = torch.tensor(self.sequences[idx], dtype=torch.long)  # Convert to tensor
-        return sequence[:, :-1], sequence[:, 1:]  # Input and target shifted by 1
+        sequence = torch.tensor(self.sequences[idx], dtype=torch.long) 
+        return sequence[:-1], sequence[1:]  
+
 
 train_size = int(0.8 * len(ENCODED_SEQUENCES)) 
 val_size = len(ENCODED_SEQUENCES) - train_size
