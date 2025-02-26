@@ -47,7 +47,7 @@ class MusicTransformer(nn.Module):
         x = self.dropout(x)  # Apply dropout after embeddings and positional encoding
         mask = self.generate_causal_mask(seq_len, x.device)  # Generate causal mask
         
-        x = self.decoder(x, memory=None, tgt_mask=mask)  # Apply transformer decoder with mask
+        x = self.decoder(x, x, tgt_mask=mask)  # Apply transformer decoder with mask
         x = self.fc_out(x)  # Predict next token
         return x
 
