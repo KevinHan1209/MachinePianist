@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from transformer import MusicTransformer
 from build_vocabulary import VOCABULARY_SIZE
-from pre_processing import MusicDataset, split_dataset, create_dataloader, TOKEN_TO_INDEX, ENCODED_SEQUENCES
+from pre_processing import TOKEN_TO_INDEX, train_loader, val_loader
 import config  # Import configuration
 
 # Initialize wandb
@@ -39,85 +39,58 @@ epochs = config.EPOCHS
 learning_rate = config.LEARNING_RATE
 device = config.DEVICE
 
-# Split dataset into train and validation sets
-train_dataset, val_dataset = split_dataset(ENCODED_SEQUENCES)
+# Initialize the model
+model = MusicTransformer(
+    vocab_size=vocab_size,
+    embed_size=embed_size,
+    num_heads=num_heads,
+    num_layers=num_layers,
+    hidden_dim=hidden_dim,
+    seq_len=seq_len,
+    dropout=0.1
+).to(device)
 
-# Create DataLoaders
-train_dataloader = create_dataloader(train_dataset, batch_size, shuffle=True)
-val_dataloader = create_dataloader(val_dataset, batch_size, shuffle=False)
+# Define the loss function and optimizer
+criterion = nn.CrossEntropyLoss(ignore_index=TOKEN_TO_INDEX['PAD'])  # Ignore padding token in loss calculation
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.98), eps=1e-9)
 
-# Initialize the model, loss function, and optimizer
-model = MusicTransformer(vocab_size=vocab_size, embed_size=embed_size, num_heads=num_heads, 
-                         num_layers=num_layers, hidden_dim=hidden_dim, seq_len=seq_len-1)
-model.to(device)
+# Training loop
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    
+    for batch_idx, (inputs, targets) in enumerate(train_loader):
+        inputs, targets = inputs.to(device), targets.to(device)
 
-loss_fn = nn.CrossEntropyLoss(ignore_index=TOKEN_TO_INDEX['PAD'])  # Ignore padding tokens
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer.zero_grad()  # Clear gradients
+        outputs = model(inputs)  # Forward pass
+        
+        loss = criterion(outputs.view(-1, vocab_size), targets.view(-1))  # Compute loss
+        loss.backward()  # Backpropagation
+        optimizer.step()  # Update weights
+        
+        total_loss += loss.item()
 
-# Load existing model weights if available
-if os.path.exists(config.MODEL_PATH) and config.FROM_SAVED:
-    print(f"Loading existing model weights from {config.MODEL_PATH}...")
-    checkpoint = torch.load(config.MODEL_PATH)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    start_epoch = checkpoint["epoch"] + 1
-    print(f"Resuming training from epoch {start_epoch}.\n")
-else:
-    start_epoch = 0
+        if (batch_idx + 1) % 10 == 0:  # Print loss every 10 batches
+            print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
-# Watch the model in wandb (logs gradients and model parameters)
-wandb.watch(model, log="all")
+    avg_train_loss = total_loss / len(train_loader)
+    print(f"Epoch [{epoch+1}/{epochs}] Completed. Avg Training Loss: {avg_train_loss:.4f}")
 
-# Training and validation loop
-def train(model, train_loader, val_loader, optimizer, loss_fn, device, epochs, start_epoch):
-    for epoch in range(start_epoch, epochs):
-        model.train()
-        total_loss = 0
-        for src, tgt in tqdm(train_loader, desc=f"Training Epoch {epoch+1}/{epochs}"):
-            src, tgt = src.to(device), tgt.to(device)
+    # Validation loop
+    model.eval()
+    val_loss = 0
 
-            optimizer.zero_grad()
-            output = model(src)
+    with torch.no_grad():
+        for inputs, targets in val_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs.view(-1, vocab_size), targets.view(-1))
+            val_loss += loss.item()
 
-            loss = loss_fn(output.view(-1, vocab_size), tgt.view(-1))
-            total_loss += loss.item()
+    avg_val_loss = val_loss / len(val_loader)
+    print(f"Validation Loss after Epoch {epoch+1}: {avg_val_loss:.4f}")
 
-            loss.backward()
-            optimizer.step()
-
-        avg_train_loss = total_loss / len(train_loader)
-        print(f"Epoch [{epoch + 1}/{epochs}], Training Loss: {avg_train_loss}")
-
-        # Log training loss to wandb
-        wandb.log({"Training Loss": avg_train_loss, "Epoch": epoch + 1})
-
-        # Save model weights after each epoch
-        torch.save({
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict()
-        }, config.MODEL_PATH)
-        print(f"Model saved to {config.MODEL_PATH}.")
-
-        # Validation phase
-        model.eval()
-        val_loss = 0
-        with torch.no_grad():
-            for src, tgt in tqdm(val_loader, desc=f"Validating Epoch {epoch+1}/{epochs}"):
-                src, tgt = src.to(device), tgt.to(device)
-                output = model(src)
-
-                loss = loss_fn(output.view(-1, vocab_size), tgt.view(-1))
-                val_loss += loss.item()
-
-        avg_val_loss = val_loss / len(val_loader)
-        print(f"Epoch [{epoch + 1}/{epochs}], Validation Loss: {avg_val_loss}")
-
-        # Log validation loss to wandb
-        wandb.log({"Validation Loss": avg_val_loss, "Epoch": epoch + 1})
-
-# Start training
-train(model, train_dataloader, val_dataloader, optimizer, loss_fn, device, epochs, start_epoch)
-
-# Finish wandb run
-wandb.finish()
+# Save the final model
+torch.save(model.state_dict(), "music_transformer.pth")
+print("Training complete. Model saved.")

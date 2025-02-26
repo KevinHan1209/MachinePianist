@@ -21,7 +21,6 @@ def create_index_to_token(token_to_index):
 def encode_tokens(tokens, token_to_index):
     return [token_to_index.get(token.strip(), token_to_index['PAD']) for token in tokens]  # 'PAD' if token is unknown
 
-# Example of how to use this script with your tokenized Chopin pieces
 def process_pieces(directory, vocab_file, sequence_length):
     token_to_index = load_vocab(vocab_file)  # Load the vocabulary from midi_vocab.txt
     
@@ -62,30 +61,23 @@ ENCODED_SEQUENCES = process_pieces(directory, vocab_file, sequence_length)
 
 print("Total sequences:",len(ENCODED_SEQUENCES))
 
-class MusicDataset(Dataset):
+class MIDIDataset(Dataset):
     def __init__(self, sequences):
-        self.sequences = sequences
-    
+        self.sequences = sequences  # Encoded MIDI token sequences
+
     def __len__(self):
         return len(self.sequences)
-    
+
     def __getitem__(self, idx):
-        seq = self.sequences[idx]
-        
-        # Create the src (input) and tgt (target) sequences
-        src = torch.tensor(seq[0: len(seq) - 1])  # Use the entire padded sequence
-        tgt = torch.tensor(seq[1:])  # All except the first token for the target
+        sequence = torch.tensor(self.sequences[idx], dtype=torch.long)  # Convert to tensor
+        return sequence[:, :-1], sequence[:, 1:]  # Input and target shifted by 1
 
-        return src, tgt
+train_size = int(0.8 * len(ENCODED_SEQUENCES)) 
+val_size = len(ENCODED_SEQUENCES) - train_size
 
-# Create DataLoader
-def create_dataloader(encoded_sequences, batch_size, shuffle=True):
-    dataset = MusicDataset(encoded_sequences)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-    return dataloader
+train_data, val_data = random_split(ENCODED_SEQUENCES, [train_size, val_size])
 
-def split_dataset(encoded_sequences, val_split=0.2):
-    val_size = int(len(encoded_sequences) * val_split)
-    train_size = len(encoded_sequences) - val_size
-    train_dataset, val_dataset = random_split(encoded_sequences, [train_size, val_size])
-    return train_dataset, val_dataset
+train_loader = DataLoader(MIDIDataset(train_data), batch_size=config.BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(MIDIDataset(val_data), batch_size=config.BATCH_SIZE, shuffle=False)
+
+print(f"Training batches: {len(train_loader)}, Validation batches: {len(val_loader)}")

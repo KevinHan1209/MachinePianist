@@ -15,12 +15,14 @@ num_heads = config.NUM_HEADS
 num_layers  = config.NUM_LAYERS
 hidden_dim = config.HIDDEN_DIM
 
+# Generation parameters
 max_length = 1024 * 4 # Length of new generation
+TEMP = 0.6 # "randomness" in generating new tokens. Probably should set smaller values for longer maximum lengths? 
 
 # Load your trained model
 model = MusicTransformer(vocab_size=vocab_size, embed_size=embed_size, num_heads=num_heads, 
                          num_layers=num_layers, hidden_dim=hidden_dim, seq_len=seq_len-1)
-checkpoint = torch.load('checkpoints/music_transformer.pth')
+checkpoint = torch.load('checkpoints/music_transformer.pth', map_location=device)
 model_state_dict = checkpoint["model_state_dict"]
 
 # Load model weights into the model
@@ -28,40 +30,30 @@ model.load_state_dict(model_state_dict)
 model.to(device)
 model.eval()  # Set to evaluation mode
 
-# Function to generate tokens using sliding window attention
-def generate_with_sliding_window(model, start_sequence, max_length=max_length, window_size=512, overlap_size=256):
-    """
-    Generate tokens with a sliding window mechanism.
+def generate(model, start_sequence, max_len, device, temperature=1.0):
+    model.eval()  # Set model to evaluation mode
+    generated = start_sequence.clone().to(device)
 
-    model: The trained model
-    start_sequence: A tensor of initial tokens (of length <= window_size)
-    max_length: Maximum length of generated sequence
-    window_size: The size of the sliding window
-    overlap_size: The number of tokens that overlap between consecutive windows
-    """
-    generated_sequence = start_sequence  # Start with the initial sequence
-    current_window = start_sequence  # Current window of input to the model
-    
-    while generated_sequence.size(1) < max_length:
-        # Get the output from the model
+    for _ in range(max_len):
         with torch.no_grad():
-            output = model(current_window.to(device))  # Output from the model
+            output = model(generated)  # Forward pass with the current sequence
+            next_token = output[:, -1, :]  # Take the last token's output
 
-        # Get the predicted next token (this assumes the model outputs logits for each token in the vocabulary)
-        next_token = output[:, -1, :].argmax(dim=-1).unsqueeze(1)  # Get the most likely next token
+            # Apply temperature scaling or sampling
+            next_token = sample_with_temperature(next_token, temperature)
 
-        # Append the predicted token to the generated sequence
-        generated_sequence = torch.cat((generated_sequence, next_token), dim=1)
+            # Append the generated token to the sequence
+            generated = torch.cat((generated, next_token.unsqueeze(1)), dim=1)
 
-        # Slide the window
-        if generated_sequence.size(1) > window_size:
-            # Keep the overlap between the current window and the new tokens
-            current_window = generated_sequence[:, -window_size + overlap_size:]  # Last `window_size - overlap_size` tokens
+    return generated
 
-    return generated_sequence
+def sample_with_temperature(logits, temperature=TEMP):
+    logits = logits / temperature  # Scale logits by temperature
+    probabilities = torch.nn.functional.softmax(logits, dim=-1)  # Convert to probabilities
+    return torch.multinomial(probabilities, 1)  # Sample from the distribution
 
-# Function to read tokens from the file and convert them to indices
-def read_tokens_from_file(file_path):
+
+def read_tokens_from_file(file_path, n=None):
     tokens = []
     with open(file_path, 'r') as f:
         for line in f:
@@ -70,17 +62,24 @@ def read_tokens_from_file(file_path):
                 tokens.append(TOKEN_TO_INDEX[token])
             else:
                 print(f"Warning: Token '{token}' not found in TOKEN_TO_INDEX.")
+    
+    # If n is not specified, use the entire file length
+    if n is None or n > len(tokens):
+        n = len(tokens)
+
+    tokens = tokens[-n:]  # Keep only the last n tokens
+
     return torch.tensor(tokens).unsqueeze(0).to(device)  # Add batch dimension
 
 file_path = 'Chopin_Tokens/Chopin, Frédéric, Nocturnes, Op.48, -7mntyrW3HU.mid_tokens.txt'
 
 # Read the start sequence from the file
-start_sequence = read_tokens_from_file(file_path)
+start_sequence = read_tokens_from_file(file_path, n = seq_len-1)
 
 # Generate a new sequence
-generated_sequence = generate_with_sliding_window(model, start_sequence, max_length=max_length)
+generated_sequence = generate(model, start_sequence, max_len=max_length, device = device)
 
 # Convert the generated sequence from token indices back to tokens
 generated_tokens = [INDEX_TO_TOKEN[token.item()] for token in generated_sequence.squeeze(0)]
-
+print(len(generated_tokens))
 tokens_to_midi(generated_tokens, 'Test_Sequence.mid')
