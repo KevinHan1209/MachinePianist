@@ -59,7 +59,8 @@ for epoch in range(epochs):
     model.train()
     total_loss = 0
     
-    for batch_idx, (inputs, targets) in enumerate(train_loader):
+    progress_bar = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch+1}/{epochs}")
+    for batch_idx, (inputs, targets) in progress_bar:
         inputs, targets = inputs.to(device), targets.to(device)
 
         optimizer.zero_grad()  # Clear gradients
@@ -70,13 +71,19 @@ for epoch in range(epochs):
         optimizer.step()  # Update weights
         
         total_loss += loss.item()
-
-        if (batch_idx + 1) % 10 == 0:  # Print loss every 10 batches
-            print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+        
+        # Log to wandb
+        wandb.log({"batch_loss": loss.item()})
+        
+        # Update tqdm progress bar
+        progress_bar.set_postfix(loss=loss.item())
 
     avg_train_loss = total_loss / len(train_loader)
     print(f"Epoch [{epoch+1}/{epochs}] Completed. Avg Training Loss: {avg_train_loss:.4f}")
-
+    
+    # Log epoch loss to wandb
+    wandb.log({"epoch": epoch + 1, "train_loss": avg_train_loss})
+    
     # Validation loop
     model.eval()
     val_loss = 0
@@ -90,7 +97,13 @@ for epoch in range(epochs):
 
     avg_val_loss = val_loss / len(val_loader)
     print(f"Validation Loss after Epoch {epoch+1}: {avg_val_loss:.4f}")
+    
+    # Log validation loss to wandb
+    wandb.log({"val_loss": avg_val_loss})
 
 # Save the final model
 torch.save(model.state_dict(), "music_transformer.pth")
 print("Training complete. Model saved.")
+
+# Finish wandb run
+wandb.finish()
