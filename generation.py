@@ -1,8 +1,10 @@
 import torch
 from transformer import MusicTransformer
 from build_vocabulary import VOCABULARY_SIZE
-from pre_processing import TOKEN_TO_INDEX, INDEX_TO_TOKEN
+from pre_processing import TOKEN_TO_INDEX, INDEX_TO_TOKEN, read_tokens_from_file
 from midi_tokenizer import tokens_to_midi
+import torch.nn.functional as F
+from tqdm import tqdm
 
 import config
 
@@ -21,65 +23,45 @@ TEMP = 0.6 # "randomness" in generating new tokens. Probably should set smaller 
 
 # Load your trained model
 model = MusicTransformer(vocab_size=vocab_size, embed_size=embed_size, num_heads=num_heads, 
-                         num_layers=num_layers, hidden_dim=hidden_dim, seq_len=seq_len-1)
+                         num_layers=num_layers, hidden_dim=hidden_dim, seq_len=seq_len)
 checkpoint = torch.load('checkpoints/music_transformer.pth', map_location=device)
-model_state_dict = checkpoint["model_state_dict"]
+file_path = 'Chopin_Tokens/Chopin, Frédéric, Nocturnes, Op.48, -7mntyrW3HU.mid_tokens.txt'
+# Read the start sequence from the file
+start_sequence = read_tokens_from_file(file_path, n = seq_len)
+
 
 # Load model weights into the model
-model.load_state_dict(model_state_dict)
+model.load_state_dict(checkpoint)
 model.to(device)
 model.eval()  # Set to evaluation mode
+print(f"len: {len(start_sequence)}")
 
-def generate(model, start_sequence, max_len, device, temperature=1.0):
+def generate_music(model, start_sequence, max_length, temp=0.6):
     model.eval()  # Set model to evaluation mode
-    generated = start_sequence.clone().to(device)
+    generated_sequence = torch.tensor(start_sequence, dtype=torch.long, device=device).unsqueeze(0)  # Shape (1, seq_len-1)
 
-    for _ in range(max_len):
+    for _ in tqdm(range(max_length), desc="Generating Music", unit="token"):
         with torch.no_grad():
-            output = model(generated)  # Forward pass with the current sequence
-            next_token = output[:, -1, :]  # Take the last token's output
+            logits = model(generated_sequence[:, -seq_len:])  # Ensure input is always seq_len
+            logits = logits[:, -1, :]  # Get the last token logits
+        
+        # Apply temperature scaling and softmax
+        scaled_logits = logits / temp
+        probs = F.softmax(scaled_logits, dim=-1)
 
-            # Apply temperature scaling or sampling
-            next_token = sample_with_temperature(next_token, temperature)
+        # Sample the next token
+        next_token = torch.multinomial(probs, num_samples=1).item()
+        
+        # Append the new token to the sequence
+        generated_sequence = torch.cat([generated_sequence, torch.tensor([[next_token]], device=device)], dim=1)
 
-            # Append the generated token to the sequence
-            generated = torch.cat((generated, next_token.unsqueeze(1)), dim=1)
+    return generated_sequence.squeeze(0).tolist()
 
-    return generated
+# Generate new music
+generated_tokens = generate_music(model, start_sequence, max_length, TEMP)
 
-def sample_with_temperature(logits, temperature=TEMP):
-    logits = logits / temperature  # Scale logits by temperature
-    probabilities = torch.nn.functional.softmax(logits, dim=-1)  # Convert to probabilities
-    return torch.multinomial(probabilities, 1)  # Sample from the distribution
+# Convert generated tokens back to MIDI
+output_midi = tokens_to_midi(generated_tokens)
+output_midi.save("generated_music.mid")
 
-
-def read_tokens_from_file(file_path, n=None):
-    tokens = []
-    with open(file_path, 'r') as f:
-        for line in f:
-            token = line.strip()  # Remove any leading/trailing whitespace
-            if token in TOKEN_TO_INDEX:
-                tokens.append(TOKEN_TO_INDEX[token])
-            else:
-                print(f"Warning: Token '{token}' not found in TOKEN_TO_INDEX.")
-    
-    # If n is not specified, use the entire file length
-    if n is None or n > len(tokens):
-        n = len(tokens)
-
-    tokens = tokens[-n:]  # Keep only the last n tokens
-
-    return torch.tensor(tokens).unsqueeze(0).to(device)  # Add batch dimension
-
-file_path = 'Chopin_Tokens/Chopin, Frédéric, Nocturnes, Op.48, -7mntyrW3HU.mid_tokens.txt'
-
-# Read the start sequence from the file
-start_sequence = read_tokens_from_file(file_path, n = seq_len-1)
-
-# Generate a new sequence
-generated_sequence = generate(model, start_sequence, max_len=max_length, device = device)
-
-# Convert the generated sequence from token indices back to tokens
-generated_tokens = [INDEX_TO_TOKEN[token.item()] for token in generated_sequence.squeeze(0)]
-print(len(generated_tokens))
-tokens_to_midi(generated_tokens, 'Test_Sequence.mid')
+print("Music generation complete! Saved as 'generated_music.mid'.")

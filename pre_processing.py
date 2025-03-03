@@ -61,6 +61,24 @@ ENCODED_SEQUENCES = process_pieces(directory, vocab_file, sequence_length)
 
 print("Total sequences:",len(ENCODED_SEQUENCES))
 
+
+def read_tokens_from_file(file_path, n=None):
+    tokens = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            token = line.strip()  # Remove any leading/trailing whitespace
+            if token in TOKEN_TO_INDEX:
+                tokens.append(TOKEN_TO_INDEX[token])
+            else:
+                print(f"Warning: Token '{token}' not found in TOKEN_TO_INDEX.")
+    
+    # If n is not specified, use the entire file length
+    if n is None or n > len(tokens):
+        n = len(tokens)
+    print("n: ", n)
+    tokens = tokens[-n:]  # Keep only the last n tokens'
+    return tokens
+
 class MIDIDataset(Dataset):
     def __init__(self, sequences):
         self.sequences = sequences  # Encoded MIDI token sequences
