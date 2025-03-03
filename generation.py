@@ -58,10 +58,10 @@ def generate_music(model, start_sequence, max_length, temp=0.6):
     return generated_sequence.squeeze(0).tolist()
 
 # Generate new music
-generated_tokens = generate_music(model, start_sequence, max_length, TEMP)
+generated_tokens = [INDEX_TO_TOKEN[token_index] for token_index in generate_music(model, start_sequence, max_length, TEMP)]
 
 # Convert generated tokens back to MIDI
-output_midi = tokens_to_midi(generated_tokens)
+output_midi = tokens_to_midi(generated_tokens, "generated_music.mid")
 output_midi.save("generated_music.mid")
 
 print("Music generation complete! Saved as 'generated_music.mid'.")
